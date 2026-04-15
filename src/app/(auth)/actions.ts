@@ -30,11 +30,12 @@ export async function signup(formData: FormData) {
   const inviteCode = formData.get("invite_code") as string | null;
 
   // Verify invite code or check if this is the first user
-  const { count } = await supabase
+  const { count, error: countError } = await supabase
     .from("profiles")
     .select("*", { count: "exact", head: true });
 
-  const isFirstUser = count === 0;
+  // count is null if query fails or RLS blocks it — treat null/0 as first user
+  const isFirstUser = countError || count === null || count === 0;
 
   if (!isFirstUser && !inviteCode) {
     return { error: "An invite code is required to sign up." };
