@@ -1,6 +1,6 @@
 export type UserRole = "privacy_officer" | "project_manager" | "other";
 export type AssessmentStatus = "draft" | "in_review" | "approved" | "archived";
-export type ThresholdResult = "full_pia_required" | "not_required" | "pending";
+export type ThresholdResult = "full_pia_required" | "pia_recommended" | "not_required" | "pending";
 export type RiskLikelihood =
   | "rare"
   | "unlikely"

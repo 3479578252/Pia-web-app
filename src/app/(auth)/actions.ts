@@ -29,56 +29,34 @@ export async function signup(formData: FormData) {
   const displayName = formData.get("display_name") as string;
   const inviteCode = formData.get("invite_code") as string | null;
 
-  // Verify invite code or check if this is the first user
+  // Check if this is the first user (no profiles yet)
   const { count, error: countError } = await supabase
     .from("profiles")
     .select("*", { count: "exact", head: true });
 
-  // count is null if query fails or RLS blocks it — treat null/0 as first user
   const isFirstUser = countError || count === null || count === 0;
 
   if (!isFirstUser && !inviteCode) {
     return { error: "An invite code is required to sign up." };
   }
 
-  // If invite code provided, validate it
-  if (inviteCode) {
-    const { data: invite } = await supabase
-      .from("invites")
-      .select("*")
-      .eq("code", inviteCode)
-      .eq("status", "pending")
-      .gt("expires_at", new Date().toISOString())
-      .single();
-
-    if (!invite) {
-      return { error: "Invalid or expired invite code." };
-    }
-  }
-
+  // Sign up and pass invite_code + display_name via user metadata.
+  // The handle_new_user() database trigger validates the invite code,
+  // assigns the role, and marks the invite as accepted — all within
+  // the trigger's SECURITY DEFINER context (no RLS bypass needed in app code).
   const { error } = await supabase.auth.signUp({
     email,
     password,
     options: {
       data: {
         display_name: displayName,
+        invite_code: inviteCode || undefined,
       },
     },
   });
 
   if (error) {
     return { error: error.message };
-  }
-
-  // If invite code was used, mark it as accepted
-  if (inviteCode) {
-    const { data: user } = await supabase.auth.getUser();
-    if (user?.user) {
-      await supabase
-        .from("invites")
-        .update({ status: "accepted", accepted_by: user.user.id })
-        .eq("code", inviteCode);
-    }
   }
 
   redirect("/onboarding");
