@@ -26,6 +26,7 @@ DECLARE
   invite_code TEXT;
   invite_row RECORD;
   is_onboarded BOOLEAN;
+  invite_found BOOLEAN := FALSE;
 BEGIN
   -- Count existing profiles to determine if this is the first user
   SELECT COUNT(*) INTO user_count FROM public.profiles;
@@ -49,6 +50,7 @@ BEGIN
       -- Valid invite: assign the role from the invite
       assigned_role := invite_row.role;
       is_onboarded := FALSE;
+      invite_found := TRUE;
     ELSE
       -- Invalid or expired code: create with no role
       assigned_role := NULL;
@@ -71,7 +73,7 @@ BEGIN
   );
 
   -- Mark invite as accepted after profile exists (accepted_by FK references profiles.id)
-  IF invite_row.id IS NOT NULL THEN
+  IF invite_found THEN
     UPDATE public.invites
     SET status = 'accepted', accepted_by = NEW.id
     WHERE id = invite_row.id;
