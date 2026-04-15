@@ -47,18 +47,46 @@ export async function updateSession(request: NextRequest) {
     return NextResponse.redirect(url);
   }
 
-  // If authenticated, check if onboarding is complete
-  if (user && !isPublicPath && pathname !== "/onboarding") {
+  // Paths that authenticated users can access regardless of role/onboarding
+  const specialPaths = ["/awaiting-approval", "/onboarding"];
+  const isSpecialPath = specialPaths.some((p) => pathname.startsWith(p));
+
+  // If authenticated, check role and onboarding status
+  if (user && !isPublicPath && !isSpecialPath) {
     const { data: profile } = await supabase
       .from("profiles")
       .select("onboarding_complete, role")
       .eq("id", user.id)
       .single();
 
-    // If profile exists but onboarding not complete, redirect to onboarding
-    if (profile && !profile.onboarding_complete) {
+    if (profile) {
+      // No role assigned — redirect to awaiting approval
+      if (!profile.role) {
+        const url = request.nextUrl.clone();
+        url.pathname = "/awaiting-approval";
+        return NextResponse.redirect(url);
+      }
+
+      // Role assigned but onboarding not complete — redirect to onboarding
+      if (!profile.onboarding_complete) {
+        const url = request.nextUrl.clone();
+        url.pathname = "/onboarding";
+        return NextResponse.redirect(url);
+      }
+    }
+  }
+
+  // If user has a role and is on /awaiting-approval, redirect to onboarding or dashboard
+  if (user && pathname === "/awaiting-approval") {
+    const { data: profile } = await supabase
+      .from("profiles")
+      .select("role, onboarding_complete")
+      .eq("id", user.id)
+      .single();
+
+    if (profile?.role) {
       const url = request.nextUrl.clone();
-      url.pathname = "/onboarding";
+      url.pathname = profile.onboarding_complete ? "/dashboard" : "/onboarding";
       return NextResponse.redirect(url);
     }
   }
