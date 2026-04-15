@@ -17,7 +17,7 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import type { Assessment, AssessmentStatus, ThresholdCheck } from "@/types/database";
+import type { Assessment, AssessmentStatus, ThresholdCheck, ThresholdResult } from "@/types/database";
 
 const statusLabels: Record<AssessmentStatus, string> = {
   draft: "Draft",
@@ -34,6 +34,21 @@ const statusVariants: Record<
   in_review: "secondary",
   approved: "default",
   archived: "outline",
+};
+
+const thresholdResultLabels: Record<Exclude<ThresholdResult, "pending">, string> = {
+  full_pia_required: "Full PIA Required",
+  pia_recommended: "PIA Recommended",
+  not_required: "PIA Not Required",
+};
+
+const thresholdResultVariants: Record<
+  Exclude<ThresholdResult, "pending">,
+  "default" | "secondary" | "outline" | "destructive"
+> = {
+  full_pia_required: "destructive",
+  pia_recommended: "secondary",
+  not_required: "outline",
 };
 
 interface Step {
@@ -75,7 +90,10 @@ export default async function AssessmentPage({
 
   const threshold = rawThreshold as ThresholdCheck | null;
   const thresholdComplete = threshold !== null && threshold.result !== "pending";
-  const fullPiaRequired = threshold?.result === "full_pia_required";
+  const piaUnlocked =
+    thresholdComplete &&
+    (threshold?.result === "full_pia_required" ||
+      threshold?.result === "pia_recommended");
 
   const steps: Step[] = [
     {
@@ -92,7 +110,7 @@ export default async function AssessmentPage({
         "Map how personal information flows through your project — collection, use, storage, disclosure.",
       href: `/assessments/${id}/data-flow`,
       icon: <GitBranch className="h-6 w-6" />,
-      available: thresholdComplete && fullPiaRequired,
+      available: piaUnlocked,
     },
     {
       label: "APP Analysis",
@@ -100,7 +118,7 @@ export default async function AssessmentPage({
         "Assess compliance against each of the 13 Australian Privacy Principles.",
       href: `/assessments/${id}/app-analysis`,
       icon: <Shield className="h-6 w-6" />,
-      available: thresholdComplete && fullPiaRequired,
+      available: piaUnlocked,
     },
     {
       label: "Risk Register",
@@ -108,7 +126,7 @@ export default async function AssessmentPage({
         "Identify, score, and plan mitigations for privacy risks.",
       href: `/assessments/${id}/risks`,
       icon: <AlertTriangle className="h-6 w-6" />,
-      available: thresholdComplete && fullPiaRequired,
+      available: piaUnlocked,
     },
     {
       label: "Review & Approval",
@@ -116,7 +134,7 @@ export default async function AssessmentPage({
         "Submit for review, add comments, and track approval status.",
       href: `/assessments/${id}/review`,
       icon: <FileCheck className="h-6 w-6" />,
-      available: thresholdComplete && fullPiaRequired,
+      available: piaUnlocked,
     },
     {
       label: "Report",
@@ -124,7 +142,7 @@ export default async function AssessmentPage({
         "View the complete PIA report and download as Word document.",
       href: `/assessments/${id}/report`,
       icon: <FileOutput className="h-6 w-6" />,
-      available: thresholdComplete && fullPiaRequired,
+      available: piaUnlocked,
     },
   ];
 
@@ -136,6 +154,11 @@ export default async function AssessmentPage({
           <Badge variant={statusVariants[assessment.status]}>
             {statusLabels[assessment.status]}
           </Badge>
+          {thresholdComplete && threshold?.result && threshold.result !== "pending" && (
+            <Badge variant={thresholdResultVariants[threshold.result]}>
+              {thresholdResultLabels[threshold.result]}
+            </Badge>
+          )}
         </div>
         {assessment.description && (
           <p className="mt-2 text-muted-foreground">
@@ -148,6 +171,23 @@ export default async function AssessmentPage({
           </p>
         )}
       </div>
+
+      {thresholdComplete && threshold?.result === "not_required" && (
+        <Card>
+          <CardContent className="flex items-center justify-between py-4">
+            <p className="text-sm text-muted-foreground">
+              The threshold assessment indicates a full PIA is not required. You
+              can still proceed with one if you&apos;d like.
+            </p>
+            <Link
+              href={`/assessments/${id}/threshold`}
+              className="shrink-0 text-sm font-medium text-primary hover:underline"
+            >
+              Review or proceed
+            </Link>
+          </CardContent>
+        </Card>
+      )}
 
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
         {steps.map((step, i) => (
