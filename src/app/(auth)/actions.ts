@@ -41,17 +41,13 @@ export async function signup(formData: FormData) {
     return { error: "An invite code is required to sign up." };
   }
 
-  // If invite code provided, validate it
+  // If invite code provided, validate it via SECURITY DEFINER function
+  // (anon users can't read the invites table directly due to RLS)
   if (inviteCode) {
-    const { data: invite } = await supabase
-      .from("invites")
-      .select("*")
-      .eq("code", inviteCode)
-      .eq("status", "pending")
-      .gt("expires_at", new Date().toISOString())
-      .single();
+    const { data: invite, error: inviteError } = await supabase
+      .rpc("validate_invite_code", { invite_code: inviteCode });
 
-    if (!invite) {
+    if (inviteError || !invite || invite.length === 0) {
       return { error: "Invalid or expired invite code." };
     }
   }
@@ -70,14 +66,14 @@ export async function signup(formData: FormData) {
     return { error: error.message };
   }
 
-  // If invite code was used, mark it as accepted
+  // If invite code was used, mark it as accepted via SECURITY DEFINER function
   if (inviteCode) {
     const { data: user } = await supabase.auth.getUser();
     if (user?.user) {
-      await supabase
-        .from("invites")
-        .update({ status: "accepted", accepted_by: user.user.id })
-        .eq("code", inviteCode);
+      await supabase.rpc("accept_invite", {
+        invite_code: inviteCode,
+        user_uuid: user.user.id,
+      });
     }
   }
 
