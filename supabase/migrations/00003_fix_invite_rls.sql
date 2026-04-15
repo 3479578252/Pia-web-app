@@ -49,11 +49,6 @@ BEGIN
       -- Valid invite: assign the role from the invite
       assigned_role := invite_row.role;
       is_onboarded := FALSE;
-
-      -- Mark invite as accepted
-      UPDATE public.invites
-      SET status = 'accepted', accepted_by = NEW.id
-      WHERE id = invite_row.id;
     ELSE
       -- Invalid or expired code: create with no role
       assigned_role := NULL;
@@ -65,6 +60,7 @@ BEGIN
     is_onboarded := FALSE;
   END IF;
 
+  -- Insert profile first (must exist before invites.accepted_by can reference it)
   INSERT INTO public.profiles (id, email, display_name, role, onboarding_complete)
   VALUES (
     NEW.id,
@@ -73,6 +69,13 @@ BEGIN
     assigned_role,
     is_onboarded
   );
+
+  -- Mark invite as accepted after profile exists (accepted_by FK references profiles.id)
+  IF invite_row.id IS NOT NULL THEN
+    UPDATE public.invites
+    SET status = 'accepted', accepted_by = NEW.id
+    WHERE id = invite_row.id;
+  END IF;
 
   RETURN NEW;
 END;
