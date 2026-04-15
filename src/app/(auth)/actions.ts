@@ -29,21 +29,10 @@ export async function signup(formData: FormData) {
   const displayName = formData.get("display_name") as string;
   const inviteCode = formData.get("invite_code") as string | null;
 
-  // Check if this is the first user (no profiles yet)
-  const { count, error: countError } = await supabase
-    .from("profiles")
-    .select("*", { count: "exact", head: true });
-
-  const isFirstUser = countError || count === null || count === 0;
-
-  if (!isFirstUser && !inviteCode) {
-    return { error: "An invite code is required to sign up." };
-  }
-
   // Sign up and pass invite_code + display_name via user metadata.
   // The handle_new_user() database trigger validates the invite code,
-  // assigns the role, and marks the invite as accepted — all within
-  // the trigger's SECURITY DEFINER context (no RLS bypass needed in app code).
+  // assigns the role, and marks the invite as accepted.
+  // Users without a valid invite code get created with no role (pending approval).
   const { error } = await supabase.auth.signUp({
     email,
     password,

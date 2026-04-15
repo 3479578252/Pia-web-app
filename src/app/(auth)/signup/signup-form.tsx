@@ -85,17 +85,17 @@ export function SignupForm() {
             />
           </div>
           <div className="space-y-2">
-            <Label htmlFor="invite_code">Invite code</Label>
+            <Label htmlFor="invite_code">Invite code (optional)</Label>
             <Input
               id="invite_code"
               name="invite_code"
               type="text"
-              placeholder="Enter your invite code"
+              placeholder="Enter your invite code if you have one"
               defaultValue={inviteCode}
             />
             <p className="text-xs text-muted-foreground">
-              Required unless you&apos;re the first user setting up the
-              workspace.
+              An invite code will automatically assign your role. Without one,
+              the Privacy Officer will need to approve your account.
             </p>
           </div>
           <Button type="submit" className="w-full" disabled={loading}>
