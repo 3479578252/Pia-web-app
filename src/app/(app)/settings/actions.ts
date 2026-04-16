@@ -2,6 +2,8 @@
 
 import { createClient } from "@/lib/supabase/server";
 import { nanoid } from "@/lib/nanoid";
+import { sendInviteEmail } from "@/lib/email";
+import { headers } from "next/headers";
 import type { UserRole } from "@/types/database";
 
 export async function createEmailInvite(email: string, role: UserRole) {
@@ -15,7 +17,7 @@ export async function createEmailInvite(email: string, role: UserRole) {
   // Check caller is privacy officer
   const { data: profile } = await supabase
     .from("profiles")
-    .select("role")
+    .select("role, display_name")
     .eq("id", user.id)
     .single();
   if (profile?.role !== "privacy_officer") return { error: "Unauthorized" };
@@ -33,9 +35,25 @@ export async function createEmailInvite(email: string, role: UserRole) {
 
   if (error) return { error: error.message };
 
-  // In production, send email here via email provider abstraction
-  // For now, return the invite code/link
-  return { code };
+  // Send invite email
+  const headersList = await headers();
+  const host = headersList.get("host") || "localhost:3000";
+  const protocol = host.includes("localhost") ? "http" : "https";
+  const appUrl = `${protocol}://${host}`;
+
+  const emailResult = await sendInviteEmail({
+    to: email,
+    inviteCode: code,
+    role,
+    invitedByName: profile?.display_name || "Your Privacy Officer",
+    appUrl,
+  });
+
+  if (emailResult.error) {
+    return { code, emailError: emailResult.error };
+  }
+
+  return { code, emailSent: true };
 }
 
 export async function createCodeInvite(role: UserRole) {
