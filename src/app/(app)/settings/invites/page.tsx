@@ -44,16 +44,25 @@ export default function InvitesPage() {
     loadInvites();
   }, [loadInvites]);
 
+  const [emailSent, setEmailSent] = useState(false);
+
   async function handleEmailInvite(e: React.FormEvent) {
     e.preventDefault();
     setLoading(true);
     setError(null);
+    setEmailSent(false);
     const result = await createEmailInvite(email, role);
     if (result.error) {
       setError(result.error);
     } else {
       setEmail("");
       setGeneratedCode(result.code ?? null);
+      if ("emailSent" in result && result.emailSent) {
+        setEmailSent(true);
+      }
+      if ("emailError" in result && result.emailError) {
+        setError(`Invite created but email failed: ${result.emailError}`);
+      }
       loadInvites();
     }
     setLoading(false);
@@ -148,6 +157,11 @@ export default function InvitesPage() {
               <Button type="submit" disabled={loading} className="w-full">
                 {loading ? "Sending..." : "Send invite"}
               </Button>
+              {emailSent && (
+                <p className="text-sm text-green-600">
+                  Invite email sent successfully.
+                </p>
+              )}
             </form>
           </CardContent>
         </Card>

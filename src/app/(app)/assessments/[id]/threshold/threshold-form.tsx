@@ -1,18 +1,16 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useRef, useEffect, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
-import { ArrowLeft, AlertTriangle, CheckCircle2, Info } from "lucide-react";
-import { Button } from "@/components/ui/button";
 import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
+  ArrowLeft,
+  AlertTriangle,
+  CheckCircle2,
+  Info,
+  ArrowRight,
+} from "lucide-react";
+import { Button } from "@/components/ui/button";
 import {
   THRESHOLD_QUESTIONS,
   calculateThresholdResult,
@@ -32,30 +30,34 @@ const resultConfig: Record<
   {
     label: string;
     description: string;
-    variant: "default" | "secondary" | "outline" | "destructive";
+    color: string;
+    borderColor: string;
     icon: React.ReactNode;
   }
 > = {
   full_pia_required: {
     label: "Full PIA Required",
     description:
-      "Based on your responses, this project presents high privacy risks. A full Privacy Impact Assessment is required before proceeding.",
-    variant: "destructive",
-    icon: <AlertTriangle className="h-5 w-5" />,
+      "This project presents high privacy risks. A full Privacy Impact Assessment is required before proceeding.",
+    color: "bg-red-50 text-red-800",
+    borderColor: "border-red-300",
+    icon: <AlertTriangle className="h-5 w-5 text-red-600" />,
   },
   pia_recommended: {
     label: "PIA Recommended",
     description:
-      "Based on your responses, this project may present privacy risks. A Privacy Impact Assessment is recommended to identify and mitigate potential issues.",
-    variant: "secondary",
-    icon: <Info className="h-5 w-5" />,
+      "This project may present privacy risks. A Privacy Impact Assessment is recommended.",
+    color: "bg-amber-50 text-amber-800",
+    borderColor: "border-amber-300",
+    icon: <Info className="h-5 w-5 text-amber-600" />,
   },
   not_required: {
     label: "PIA Not Required",
     description:
-      "Based on your responses, a full PIA does not appear to be necessary for this project. However, you may still choose to conduct one.",
-    variant: "outline",
-    icon: <CheckCircle2 className="h-5 w-5" />,
+      "A full PIA does not appear necessary. You may still choose to conduct one.",
+    color: "bg-green-50 text-green-800",
+    borderColor: "border-green-300",
+    icon: <CheckCircle2 className="h-5 w-5 text-green-600" />,
   },
 };
 
@@ -65,32 +67,52 @@ export function ThresholdForm({
   existingThreshold,
 }: ThresholdFormProps) {
   const router = useRouter();
+  const questionRefs = useRef<(HTMLDivElement | null)[]>([]);
   const [responses, setResponses] = useState<ThresholdResponses>(
     (existingThreshold?.responses as ThresholdResponses) ?? {}
   );
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [submittedResult, setSubmittedResult] = useState<ThresholdResult | null>(
-    existingThreshold?.result && existingThreshold.result !== "pending"
-      ? existingThreshold.result
-      : null
-  );
+  const [submittedResult, setSubmittedResult] =
+    useState<ThresholdResult | null>(
+      existingThreshold?.result && existingThreshold.result !== "pending"
+        ? existingThreshold.result
+        : null
+    );
   const [expandedHelp, setExpandedHelp] = useState<string | null>(null);
 
-  const allAnswered = THRESHOLD_QUESTIONS.every(
+  const answeredCount = THRESHOLD_QUESTIONS.filter(
     (q) => responses[q.id] === true || responses[q.id] === false
-  );
+  ).length;
+  const allAnswered = answeredCount === THRESHOLD_QUESTIONS.length;
 
   const previewResult = allAnswered
     ? calculateThresholdResult(responses)
     : null;
 
-  function handleAnswer(questionId: string, answer: boolean) {
+  const scrollToNextUnanswered = useCallback(
+    (currentIndex: number) => {
+      for (let i = currentIndex + 1; i < THRESHOLD_QUESTIONS.length; i++) {
+        const q = THRESHOLD_QUESTIONS[i];
+        if (responses[q.id] !== true && responses[q.id] !== false) {
+          questionRefs.current[i]?.scrollIntoView({
+            behavior: "smooth",
+            block: "center",
+          });
+          return;
+        }
+      }
+    },
+    [responses]
+  );
+
+  function handleAnswer(questionId: string, answer: boolean, index: number) {
     setResponses((prev) => ({ ...prev, [questionId]: answer }));
-    // Clear submitted result when answers change so user can re-submit
     if (submittedResult) {
       setSubmittedResult(null);
     }
+    // Auto-scroll to next unanswered after a brief delay
+    setTimeout(() => scrollToNextUnanswered(index), 150);
   }
 
   async function handleSubmit() {
@@ -114,16 +136,10 @@ export function ThresholdForm({
     router.refresh();
   }
 
-  const highRiskQuestions = THRESHOLD_QUESTIONS.filter(
-    (q) => q.category === "high_risk"
-  );
-  const standardQuestions = THRESHOLD_QUESTIONS.filter(
-    (q) => q.category === "standard"
-  );
-
   return (
-    <div className="mx-auto max-w-3xl space-y-6">
-      <div>
+    <div className="mx-auto max-w-3xl pb-24">
+      {/* Header */}
+      <div className="mb-6">
         <Link
           href={`/assessments/${assessmentId}`}
           className="inline-flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground"
@@ -139,203 +155,138 @@ export function ThresholdForm({
       </div>
 
       {error && (
-        <div className="rounded-md bg-destructive/10 p-3 text-sm text-destructive">
+        <div className="mb-4 rounded-md bg-destructive/10 p-3 text-sm text-destructive">
           {error}
         </div>
       )}
 
-      {/* High-risk questions */}
-      <Card>
-        <CardHeader>
-          <CardTitle className="text-lg">High-Risk Indicators</CardTitle>
-          <CardDescription>
-            A &quot;yes&quot; to any of these questions means a full PIA is
-            required.
-          </CardDescription>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          {highRiskQuestions.map((q, i) => (
-            <QuestionRow
-              key={q.id}
-              number={i + 1}
-              question={q}
-              answer={responses[q.id]}
-              onAnswer={(answer) => handleAnswer(q.id, answer)}
-              expanded={expandedHelp === q.id}
-              onToggleHelp={() =>
-                setExpandedHelp(expandedHelp === q.id ? null : q.id)
-              }
-            />
-          ))}
-        </CardContent>
-      </Card>
-
-      {/* Standard questions */}
-      <Card>
-        <CardHeader>
-          <CardTitle className="text-lg">Additional Considerations</CardTitle>
-          <CardDescription>
-            Two or more &quot;yes&quot; answers here indicate a PIA is
-            recommended.
-          </CardDescription>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          {standardQuestions.map((q, i) => (
-            <QuestionRow
-              key={q.id}
-              number={highRiskQuestions.length + i + 1}
-              question={q}
-              answer={responses[q.id]}
-              onAnswer={(answer) => handleAnswer(q.id, answer)}
-              expanded={expandedHelp === q.id}
-              onToggleHelp={() =>
-                setExpandedHelp(expandedHelp === q.id ? null : q.id)
-              }
-            />
-          ))}
-        </CardContent>
-      </Card>
-
-      {/* Submit / Result */}
-      {!submittedResult && (
-        <div className="flex items-center gap-3">
-          <Button onClick={handleSubmit} disabled={!allAnswered || saving}>
-            {saving ? "Saving..." : "Submit assessment"}
-          </Button>
-          {!allAnswered && (
-            <span className="text-sm text-muted-foreground">
-              Answer all questions to submit
-            </span>
-          )}
-          {allAnswered && previewResult && !saving && (
-            <Badge variant={resultConfig[previewResult].variant}>
-              {resultConfig[previewResult].label}
-            </Badge>
-          )}
-        </div>
-      )}
-
-      {submittedResult && submittedResult !== "pending" && (
-        <Card
-          className={
-            submittedResult === "full_pia_required"
-              ? "border-destructive/50"
-              : submittedResult === "pia_recommended"
-                ? "border-primary/50"
-                : "border-green-500/50"
-          }
-        >
-          <CardHeader>
-            <div className="flex items-center gap-3">
-              {resultConfig[submittedResult].icon}
-              <div>
-                <CardTitle>
-                  <Badge variant={resultConfig[submittedResult].variant}>
-                    {resultConfig[submittedResult].label}
-                  </Badge>
-                </CardTitle>
-                <CardDescription className="mt-2">
-                  {resultConfig[submittedResult].description}
-                </CardDescription>
+      {/* Questions — flat list with alternating backgrounds */}
+      <div className="rounded-lg border overflow-hidden">
+        {THRESHOLD_QUESTIONS.map((q, i) => (
+          <div
+            key={q.id}
+            ref={(el) => {
+              questionRefs.current[i] = el;
+            }}
+            className={`flex items-start justify-between gap-4 px-4 py-3.5 ${
+              i % 2 === 0 ? "bg-background" : "bg-muted/30"
+            } ${i !== 0 ? "border-t" : ""} ${
+              responses[q.id] === true || responses[q.id] === false
+                ? "border-l-2 border-l-amber-400"
+                : "border-l-2 border-l-transparent"
+            }`}
+          >
+            <div className="flex-1 min-w-0">
+              <div className="flex items-start gap-1.5">
+                <p className="text-sm font-medium leading-snug">
+                  {q.text}
+                </p>
+                <button
+                  type="button"
+                  onClick={() =>
+                    setExpandedHelp(expandedHelp === q.id ? null : q.id)
+                  }
+                  className="mt-0.5 shrink-0 text-muted-foreground hover:text-foreground"
+                  title="Show guidance"
+                >
+                  <Info className="h-3.5 w-3.5" />
+                </button>
               </div>
-            </div>
-          </CardHeader>
-          <CardContent>
-            <div className="flex gap-3">
-              {(submittedResult === "full_pia_required" ||
-                submittedResult === "pia_recommended") && (
-                <Button onClick={handleProceedToPIA}>
-                  Continue to full PIA
-                </Button>
-              )}
-              {submittedResult === "not_required" && (
-                <>
-                  <Button onClick={handleProceedToPIA}>
-                    Return to assessment
-                  </Button>
-                  <Button variant="outline" onClick={handleProceedToPIA}>
-                    Proceed with PIA anyway
-                  </Button>
-                </>
+              {expandedHelp === q.id && (
+                <div className="mt-2 rounded-md bg-muted p-3 text-xs text-muted-foreground">
+                  <p>{q.helpText}</p>
+                  <p className="mt-1 font-medium">Source: {q.source}</p>
+                </div>
               )}
             </div>
-          </CardContent>
-        </Card>
-      )}
-    </div>
-  );
-}
-
-interface QuestionRowProps {
-  number: number;
-  question: {
-    id: string;
-    text: string;
-    helpText: string;
-    category: "high_risk" | "standard";
-    source: string;
-  };
-  answer: boolean | undefined;
-  onAnswer: (answer: boolean) => void;
-  expanded: boolean;
-  onToggleHelp: () => void;
-}
-
-function QuestionRow({
-  number,
-  question,
-  answer,
-  onAnswer,
-  expanded,
-  onToggleHelp,
-}: QuestionRowProps) {
-  return (
-    <div className="rounded-lg border p-4">
-      <div className="flex items-start justify-between gap-4">
-        <div className="flex-1">
-          <p className="text-sm font-medium">
-            <span className="text-muted-foreground">{number}.</span>{" "}
-            {question.text}
-          </p>
-          <button
-            type="button"
-            onClick={onToggleHelp}
-            className="mt-1 text-xs text-muted-foreground hover:text-foreground"
-          >
-            {expanded ? "Hide guidance" : "Show guidance"}
-          </button>
-          {expanded && (
-            <div className="mt-2 rounded-md bg-muted p-3 text-xs text-muted-foreground">
-              <p>{question.helpText}</p>
-              <p className="mt-1 font-medium">Source: {question.source}</p>
+            <div className="flex shrink-0 gap-1.5">
+              <button
+                type="button"
+                onClick={() => handleAnswer(q.id, true, i)}
+                className={`rounded-md px-3.5 py-1.5 text-sm font-medium transition-colors ${
+                  responses[q.id] === true
+                    ? "bg-amber-500 text-white"
+                    : "bg-muted text-muted-foreground hover:bg-muted/80"
+                }`}
+              >
+                Yes
+              </button>
+              <button
+                type="button"
+                onClick={() => handleAnswer(q.id, false, i)}
+                className={`rounded-md px-3.5 py-1.5 text-sm font-medium transition-colors ${
+                  responses[q.id] === false
+                    ? "bg-amber-500 text-white"
+                    : "bg-muted text-muted-foreground hover:bg-muted/80"
+                }`}
+              >
+                No
+              </button>
             </div>
-          )}
-        </div>
-        <div className="flex shrink-0 gap-2">
-          <button
-            type="button"
-            onClick={() => onAnswer(true)}
-            className={`rounded-md px-4 py-1.5 text-sm font-medium transition-colors ${
-              answer === true
-                ? "bg-destructive text-destructive-foreground"
-                : "bg-muted text-muted-foreground hover:bg-muted/80"
-            }`}
-          >
-            Yes
-          </button>
-          <button
-            type="button"
-            onClick={() => onAnswer(false)}
-            className={`rounded-md px-4 py-1.5 text-sm font-medium transition-colors ${
-              answer === false
-                ? "bg-primary text-primary-foreground"
-                : "bg-muted text-muted-foreground hover:bg-muted/80"
-            }`}
-          >
-            No
-          </button>
-        </div>
+          </div>
+        ))}
       </div>
+
+      {/* Result banner */}
+      {submittedResult && submittedResult !== "pending" && (
+        <div
+          className={`mt-6 flex items-center justify-between rounded-lg border p-4 ${resultConfig[submittedResult].color} ${resultConfig[submittedResult].borderColor}`}
+        >
+          <div className="flex items-center gap-3">
+            {resultConfig[submittedResult].icon}
+            <div>
+              <p className="font-semibold">
+                {resultConfig[submittedResult].label}
+              </p>
+              <p className="text-sm opacity-80">
+                {resultConfig[submittedResult].description}
+              </p>
+            </div>
+          </div>
+          <Button
+            onClick={handleProceedToPIA}
+            size="sm"
+            variant="outline"
+            className="shrink-0 ml-4 border-current"
+          >
+            Continue
+            <ArrowRight className="ml-1 h-4 w-4" />
+          </Button>
+        </div>
+      )}
+
+      {/* Sticky submit bar */}
+      {!submittedResult && answeredCount > 0 && (
+        <div className="fixed bottom-0 left-0 right-0 z-50 border-t bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/80">
+          <div className="mx-auto flex max-w-3xl items-center justify-between px-4 py-3">
+            <span className="text-sm text-muted-foreground">
+              {answeredCount} of {THRESHOLD_QUESTIONS.length} answered
+            </span>
+            <div className="flex items-center gap-3">
+              {allAnswered && previewResult && (
+                <span
+                  className={`text-sm font-medium ${
+                    previewResult === "full_pia_required"
+                      ? "text-red-600"
+                      : previewResult === "pia_recommended"
+                        ? "text-amber-600"
+                        : "text-green-600"
+                  }`}
+                >
+                  {resultConfig[previewResult].label}
+                </span>
+              )}
+              <Button
+                onClick={handleSubmit}
+                disabled={!allAnswered || saving}
+                size="sm"
+              >
+                {saving ? "Saving..." : "Submit"}
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
