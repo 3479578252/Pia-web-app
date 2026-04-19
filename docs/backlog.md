@@ -11,6 +11,7 @@ This list will grow as rigorous live-env testing uncovers issues.
 - **Notifications** — `notifications` table exists but nothing writes to it yet; wire status-change and comment-added notifications once the review workflow is stable. [added 2026-04-19]
 - **Naming reconciliation** — `profiles.display_name` vs spec term "full_name"; normalise terminology across docs and UI copy. [added 2026-04-19]
 - **Playwright E2E coverage** — infra is installed; no E2E suites yet for any step. [added 2026-04-19]
+- **Two-account RLS integration tests** — current review-workflow integration test uses a single account; role-based tests (non-PO blocked from approve, cross-user comment delete blocked, archived-assessment write-blocks) need a second account. Add `TEST_PO_EMAIL` / `TEST_NON_PO_EMAIL` env pair and a dedicated test suite. [added 2026-04-19]
 
 ## Step 5 — Review / approval
 

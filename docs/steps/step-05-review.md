@@ -39,10 +39,14 @@ New:
 - `src/app/(app)/assessments/[id]/review/comments-panel.tsx`
 - `src/app/(app)/assessments/[id]/review/audit-log.tsx`
 - `src/lib/completeness.ts` — pure helper, no DB calls
+- `src/lib/review-transitions.ts` — pure transition matrix
 - `src/lib/section-labels.ts` — stored-value → display-label map
 - `src/lib/format-time.ts` — relative time (with absolute on hover)
-- `src/__tests__/completeness.test.ts`
-- `src/__tests__/review-actions.test.ts` — integration
+- `tests/unit/completeness.test.ts`
+- `tests/unit/review-transitions.test.ts`
+- `tests/unit/section-labels.test.ts`
+- `tests/unit/format-time.test.ts`
+- `tests/integration/review-workflow.test.ts`
 - `docs/progress-log.md`
 - `docs/steps/step-05-review.md` (this file)
 - `docs/backlog.md`
