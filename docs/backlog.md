@@ -25,6 +25,14 @@ This list will grow as rigorous live-env testing uncovers issues.
 - **Word export styling / branding** — initial report ships plain; add OAIC-aligned branding, header/footer, logo, cover page in a follow-up. [added 2026-04-19]
 - **Print stylesheet polish** — browser print will work via `window.print()`; dedicated print CSS (page breaks, hidden chrome) comes after baseline ships. [added 2026-04-19]
 
+## Pre-existing lint issues (found during Step 5 chunk 3 type-check)
+
+- `src/app/(app)/settings/invites/page.tsx:44` — `loadInvites()` called synchronously inside `useEffect`; flagged by `react-hooks/set-state-in-effect`. [added 2026-04-19]
+- `src/app/(app)/settings/team/page.tsx:43` — same pattern (`loadMembers()` in effect). [added 2026-04-19]
+- `src/app/(app)/settings/team/page.tsx:5` — unused `Button` import. [added 2026-04-19]
+
+Not blocking Step 5; fix in a follow-up pass over settings pages.
+
 ## Security & operations
 
 - **Broader RLS audit** — initial findings will land in `docs/security-review.md` during Step 5 chunk 1; re-audit whenever new tables land. [added 2026-04-19]
