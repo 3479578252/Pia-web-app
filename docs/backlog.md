@@ -40,5 +40,9 @@ Not blocking Step 5; fix in a follow-up pass over settings pages.
 
 ## Security & operations
 
-- **Broader RLS audit** — initial findings will land in `docs/security-review.md` during Step 5 chunk 1; re-audit whenever new tables land. [added 2026-04-19]
+- **Broader RLS audit** — initial findings captured in `docs/security-review.md` (Review 2026-04-19); re-audit whenever new tables land. [added 2026-04-19]
 - **Rate limiting / abuse prevention** — nothing in place on comment submission or status toggling; consider Supabase edge rate limits or middleware. [added 2026-04-19]
+- **RLS-1 (high) — `notifications_insert WITH CHECK (true)`** — any authenticated user can target any `user_id`. Tighten to `user_id = auth.uid()` and route cross-user notifications through a `SECURITY DEFINER` helper or trigger. Must ship before the first notification writer. [added 2026-04-19]
+- **RLS-2 (medium) — `assessments_update` allows ownership transfer** — no `WITH CHECK` clause; an assignee can mutate `created_by` / `assigned_to`. Add a CHECK that freezes ownership columns for non-PO actors. [added 2026-04-19]
+- **RLS-4 (medium) — `comments_delete` bypasses soft-delete** — the existing FOR DELETE policy still permits hard delete via the JS client, skipping the audit-log entry. Schedule `00005_comments_soft_delete_only.sql` to drop/restrict the policy (PO-only for erasure requests). [added 2026-04-19]
+- **RLS-6 (low) — PO can self-demote; no last-PO guard** — `profiles_update` has no CHECK on `role`, so the sole PO can orphan the org. Add a `BEFORE UPDATE` trigger rejecting role changes that drop PO count to zero. [added 2026-04-19]
