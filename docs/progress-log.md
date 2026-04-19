@@ -56,7 +56,7 @@ Backfilled from git history as one-liners; not a single discrete session.
 
 - **concept** — 2026-04-19 — Collaborative review with comments, status transitions (draft → in_review → approved → archived), audit trail.
 - **design** — 2026-04-19 — Design note drafted and signed off; decisions include soft-delete for comments, snake_case stored section tags with descriptive display labels, role-gated status transitions enforced server-side, filter-by-action audit log UI.
-- **code** — _pending_ — Chunks 2–5 to follow after migration is applied.
+- **code** — 2026-04-19 — Chunk 1 (docs skeleton) committed. Chunk 2 (migration `00004_comment_soft_delete.sql`) committed; paused waiting for user to apply it in Supabase dashboard before proceeding to chunks 3–6.
 - **verification** — _pending_ — Smoke tests listed in §13 of the design note.
 - **deployed** — _pending_.
 
