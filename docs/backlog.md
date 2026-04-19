@@ -33,6 +33,10 @@ This list will grow as rigorous live-env testing uncovers issues.
 
 Not blocking Step 5; fix in a follow-up pass over settings pages.
 
+## Pre-existing build issues (found during Step 5 chunk 4 `next build`)
+
+- `src/app/awaiting-approval/page.tsx` calls `createClient()` at render time; static generation without Supabase env vars throws "Your project's URL and API key are required". Production (Vercel) has envs so builds pass there, but local `next build` fails without `.env.local`. Fix: either force the page to be dynamic (`export const dynamic = 'force-dynamic'`) or guard the client creation behind a runtime check. [added 2026-04-19]
+
 ## Security & operations
 
 - **Broader RLS audit** — initial findings will land in `docs/security-review.md` during Step 5 chunk 1; re-audit whenever new tables land. [added 2026-04-19]

@@ -25,6 +25,56 @@ export interface CompletenessResult {
   missing: CompletenessMissing[];
 }
 
+export interface CompletenessSummary {
+  thresholdResult: string | null;
+  dataFlowCount: number;
+  appNumbers: number[];
+  risksCount: number;
+}
+
+// Same rules as isAssessmentComplete, but operates on pre-aggregated counts
+// suitable for the review page's batched bundle fetch.
+export function isSummaryComplete(summary: CompletenessSummary): CompletenessResult {
+  const missing: CompletenessMissing[] = [];
+
+  if (!summary.thresholdResult || summary.thresholdResult === "pending") {
+    missing.push({
+      section: "threshold",
+      label: SECTION_LABELS.threshold,
+      reason: "No threshold result recorded.",
+    });
+  }
+
+  if (summary.dataFlowCount === 0) {
+    missing.push({
+      section: "data_flow",
+      label: SECTION_LABELS.data_flow,
+      reason: "No data flows recorded.",
+    });
+  }
+
+  const appNumbers = new Set(summary.appNumbers);
+  const expected = Array.from({ length: 13 }, (_, i) => i + 1);
+  const missingApps = expected.filter((n) => !appNumbers.has(n));
+  if (missingApps.length > 0) {
+    missing.push({
+      section: "app_analysis",
+      label: SECTION_LABELS.app_analysis,
+      reason: `Missing APP${missingApps.length > 1 ? "s" : ""} ${missingApps.join(", ")}.`,
+    });
+  }
+
+  if (summary.risksCount === 0) {
+    missing.push({
+      section: "risks",
+      label: SECTION_LABELS.risks,
+      reason: "No risks recorded.",
+    });
+  }
+
+  return { complete: missing.length === 0, missing };
+}
+
 // Loose rules — flagged for revisit after live-env testing (see docs/backlog.md).
 // Each section passes if the minimum signal of intent is present.
 export function isAssessmentComplete(input: CompletenessInput): CompletenessResult {
