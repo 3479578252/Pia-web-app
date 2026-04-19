@@ -30,6 +30,23 @@ export type ComplianceStatus =
   | "not_assessed";
 export type DataFlowEditorPreference = "form" | "visual";
 
+export type CommentSection =
+  | "general"
+  | "threshold"
+  | "data_flow"
+  | "app_analysis"
+  | "risks";
+
+export type AuditAction =
+  | "status_changed"
+  | "comment_added"
+  | "comment_deleted";
+
+export type AuditDetails =
+  | { from: AssessmentStatus; to: AssessmentStatus }
+  | { comment_id: string; section: CommentSection }
+  | { comment_id: string };
+
 export interface Profile {
   id: string;
   email: string;
@@ -129,6 +146,7 @@ export interface Comment {
   user_id: string;
   body: string;
   section: string | null;
+  deleted_at: string | null;
   created_at: string;
   updated_at: string;
 }
