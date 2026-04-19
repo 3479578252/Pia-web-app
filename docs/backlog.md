@@ -21,6 +21,12 @@ This list will grow as rigorous live-env testing uncovers issues.
 - **Section-tag jump links** — comment section tags render as badges; in a later step turn them into links to the tagged step page. [added 2026-04-19]
 - **Rich text in comments** — plain text only for now. [added 2026-04-19]
 
+## Step 5.5 — Team & collaborator management
+
+- **Email notification on collaborator add** — silent for now per spec; wire Resend when notifications layer lands. [added 2026-04-19]
+- **PO hard-delete UI for comments** — RLS-4 fix allows PO to hard-delete; no UI exposes it yet. Add a compliance / erasure button on PO review view when the flow is needed; `comment_purged` audit action already in the vocabulary. [added 2026-04-19]
+- **team_member creator UX friction** — a team_member who creates a PIA still cannot edit the threshold on that PIA (role-based, not per-PIA). Revisit if live testing surfaces friction; possible per-PIA override. [added 2026-04-19]
+
 ## Step 6 — Report generation
 
 - **Word export styling / branding** — initial report ships plain; add OAIC-aligned branding, header/footer, logo, cover page in a follow-up. [added 2026-04-19]

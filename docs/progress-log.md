@@ -60,6 +60,16 @@ Backfilled from git history as one-liners; not a single discrete session.
 - **verification** — _pending_ — Smoke tests listed in §13 of the design note. To run post-merge against https://pia-web-app.vercel.app once Vercel re-deploys.
 - **deployed** — _pending_ — Awaiting PR merge and Vercel deploy.
 
+## Step 5.5 — Team & collaborator management
+
+**In progress** — see `docs/steps/step-05-5-team.md` for full design note.
+
+- **concept** — 2026-04-19 — Follow-up from Step 5 live-env testing. Two issues surfaced: PO cannot assign roles on the Team page (browser freezes silently when a role is selected); PO cannot see who created each PIA or add users to contribute. Scope also bundles RLS-2, RLS-4, and RLS-6 fixes from the Step 5 security review into a single migration.
+- **design** — 2026-04-19 — Design note drafted and signed off. Key decisions: rename enum `other` → `team_member`; role-based permissions (team_member cannot edit threshold anywhere, even on own PIAs); new `assessment_collaborators` join table with PO-only write; deprecate `assigned_to` (migrate + drop); creator name on assessment header and assessments list; collaborator panel inline on review page; profile dropdown picker; archived PIAs block collab changes; single migration `00005_roles_and_collaborators.sql`. Ten-chunk commit plan for small-PR workflow; PR #9 at end.
+- **code** — _pending_ — chunk 1 (docs skeleton) in progress.
+- **verification** — _pending_ — smoke tests 5.5.1–5.5.12 in §13 of the design note.
+- **deployed** — _pending_.
+
 ## Step 6 — Report generation (OAIC structure + Word export)
 
 **Not started** — priority 3 per handover brief.
