@@ -22,6 +22,7 @@ export interface CollaboratorRow {
 }
 import { canTransition } from "@/lib/review-transitions";
 import { isCommentSection } from "@/lib/section-labels";
+import { canEditThreshold } from "@/lib/threshold-permissions";
 import type { SupabaseClient } from "@supabase/supabase-js";
 
 // --------------------------------------------------------------
@@ -455,8 +456,7 @@ export async function getReviewBundle(assessmentId: string) {
   const viewerRole: Profile["role"] = viewer?.role ?? null;
   const isPO = viewerRole === "privacy_officer";
   const canManageCollaborators = isPO && assessment.status !== "archived";
-  const canEditThreshold =
-    viewerRole === "privacy_officer" || viewerRole === "project_manager";
+  const thresholdEditable = canEditThreshold(viewerRole);
 
   const userIds = Array.from(
     new Set([
@@ -512,7 +512,7 @@ export async function getReviewBundle(assessmentId: string) {
     collaborators,
     assignableProfiles,
     canManageCollaborators,
-    canEditThreshold,
+    canEditThreshold: thresholdEditable,
     completeness: {
       threshold: thresholdRes.data ?? null,
       dataFlowCount: ((dataFlowsRes.data as { id: string }[]) ?? []).length,
