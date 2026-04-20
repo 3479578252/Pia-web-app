@@ -25,6 +25,7 @@ interface ThresholdFormProps {
   assessmentTitle: string;
   existingThreshold: ThresholdCheck | null;
   readOnly?: boolean;
+  isArchived?: boolean;
 }
 
 const resultConfig: Record<
@@ -68,6 +69,7 @@ export function ThresholdForm({
   assessmentTitle,
   existingThreshold,
   readOnly = false,
+  isArchived = false,
 }: ThresholdFormProps) {
   const router = useRouter();
   const questionRefs = useRef<(HTMLDivElement | null)[]>([]);
@@ -120,6 +122,7 @@ export function ThresholdForm({
   }
 
   async function handleSubmit() {
+    if (readOnly) return;
     setSaving(true);
     setError(null);
 
@@ -164,8 +167,9 @@ export function ThresholdForm({
           <div>
             <p className="font-medium">Read-only view</p>
             <p className="mt-1">
-              The threshold assessment can only be edited by a privacy
-              officer or project manager.
+              {isArchived
+                ? "This assessment is archived and can no longer be edited."
+                : "The threshold assessment can only be edited by a privacy officer or project manager."}
             </p>
           </div>
         </div>

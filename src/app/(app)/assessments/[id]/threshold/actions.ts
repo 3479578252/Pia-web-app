@@ -6,7 +6,8 @@ import {
   calculateThresholdResult,
   type ThresholdResponses,
 } from "@/lib/threshold-questions";
-import type { ThresholdCheck } from "@/types/database";
+import { canEditThreshold } from "@/lib/threshold-permissions";
+import type { Profile, ThresholdCheck } from "@/types/database";
 
 export async function saveThreshold(
   assessmentId: string,
@@ -18,6 +19,17 @@ export async function saveThreshold(
     data: { user },
   } = await supabase.auth.getUser();
   if (!user) redirect("/login");
+
+  const [{ data: profileData }, { data: assessmentData }] = await Promise.all([
+    supabase.from("profiles").select("role").eq("id", user.id).single(),
+    supabase.from("assessments").select("status").eq("id", assessmentId).single(),
+  ]);
+
+  const role = (profileData as Pick<Profile, "role"> | null)?.role ?? null;
+  if (!canEditThreshold(role)) return { error: "Unauthorized" };
+
+  const status = (assessmentData as { status: string } | null)?.status;
+  if (status === "archived") return { error: "Assessment is archived" };
 
   const result = calculateThresholdResult(responses);
 

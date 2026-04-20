@@ -1,6 +1,7 @@
 import { createClient } from "@/lib/supabase/server";
 import { redirect, notFound } from "next/navigation";
 import type { Assessment, Profile, ThresholdCheck } from "@/types/database";
+import { canEditThreshold } from "@/lib/threshold-permissions";
 import { ThresholdForm } from "./threshold-form";
 
 export default async function ThresholdPage({
@@ -31,7 +32,8 @@ export default async function ThresholdPage({
   if (!assessment) notFound();
 
   const role = (rawProfile as Pick<Profile, "role"> | null)?.role ?? null;
-  const readOnly = role === "team_member";
+  const isArchived = assessment.status === "archived";
+  const readOnly = !canEditThreshold(role) || isArchived;
   const threshold = rawThreshold as ThresholdCheck | null;
 
   return (
@@ -40,6 +42,7 @@ export default async function ThresholdPage({
       assessmentTitle={assessment.title}
       existingThreshold={threshold}
       readOnly={readOnly}
+      isArchived={isArchived}
     />
   );
 }

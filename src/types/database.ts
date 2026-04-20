@@ -49,7 +49,7 @@ export type AuditDetails =
   | { from: AssessmentStatus; to: AssessmentStatus }
   | { comment_id: string; section: CommentSection }
   | { comment_id: string }
-  | { user_id: string };
+  | { target_user_id: string };
 
 export interface Profile {
   id: string;

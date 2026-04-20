@@ -154,7 +154,7 @@ export function CollaboratorsPanel({
 
         {archived && (
           <p className="text-xs text-muted-foreground">
-            Unarchive the assessment to change collaborators.
+            This assessment is archived. Collaborators cannot be changed.
           </p>
         )}
 

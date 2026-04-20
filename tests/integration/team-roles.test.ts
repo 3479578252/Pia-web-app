@@ -164,16 +164,16 @@ describe.skipIf(!hasEnv)("Team / roles / collaborators (integration)", () => {
       user_id: eligibleCollaboratorId,
       added_by: userId,
     });
-    // RLS policy collab_insert WITH CHECK requires NOT archived; either
-    // returns an error or silently rejects. Either way, no row exists.
+    // RLS policy collab_insert WITH CHECK requires NOT archived.
+    expect(insert.error).not.toBeNull();
+    expect(insert.error?.code).toBe("42501");
+
     const { data: after } = await supabase
       .from("assessment_collaborators")
       .select("user_id")
       .eq("assessment_id", assessmentId)
       .eq("user_id", eligibleCollaboratorId);
     expect(after ?? []).toEqual([]);
-    // Either error is set, or the insert was a no-op.
-    expect(insert.error !== null || (after ?? []).length === 0).toBe(true);
 
     // Restore
     await supabase
