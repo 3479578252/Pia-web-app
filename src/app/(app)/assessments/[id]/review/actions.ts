@@ -12,6 +12,14 @@ import type {
   CommentSection,
   Profile,
 } from "@/types/database";
+
+export interface CollaboratorRow {
+  user_id: string;
+  display_name: string | null;
+  email: string;
+  added_by: string | null;
+  created_at: string;
+}
 import { canTransition } from "@/lib/review-transitions";
 import { isCommentSection } from "@/lib/section-labels";
 import type { SupabaseClient } from "@supabase/supabase-js";
@@ -218,15 +226,137 @@ export async function getAuditLog(assessmentId: string) {
 }
 
 // --------------------------------------------------------------
+// Collaborators
+// --------------------------------------------------------------
+
+export async function getCollaborators(assessmentId: string) {
+  const supabase = await createClient();
+
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) redirect("/login");
+
+  const { data, error } = await supabase
+    .from("assessment_collaborators")
+    .select(
+      "user_id, added_by, created_at, profiles!assessment_collaborators_user_id_fkey(display_name, email)"
+    )
+    .eq("assessment_id", assessmentId)
+    .order("created_at", { ascending: true });
+
+  if (error) return { error: error.message, collaborators: [] as CollaboratorRow[] };
+
+  const rows = ((data as unknown) as Array<{
+    user_id: string;
+    added_by: string | null;
+    created_at: string;
+    profiles: { display_name: string | null; email: string } | null;
+  }>) ?? [];
+
+  const collaborators: CollaboratorRow[] = rows.map((r) => ({
+    user_id: r.user_id,
+    display_name: r.profiles?.display_name ?? null,
+    email: r.profiles?.email ?? "",
+    added_by: r.added_by,
+    created_at: r.created_at,
+  }));
+
+  return { collaborators };
+}
+
+async function loadAssessmentForCollabAction(
+  supabase: SupabaseClient,
+  assessmentId: string
+) {
+  const { data, error } = await supabase
+    .from("assessments")
+    .select("id, status, created_by")
+    .eq("id", assessmentId)
+    .single();
+  if (error || !data) return null;
+  return data as Pick<Assessment, "id" | "status" | "created_by">;
+}
+
+export async function addCollaborator(assessmentId: string, userId: string) {
+  const supabase = await createClient();
+
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) redirect("/login");
+
+  const role = await loadRole(supabase, user.id);
+  if (role !== "privacy_officer") return { error: "Unauthorized" };
+
+  const assessment = await loadAssessmentForCollabAction(supabase, assessmentId);
+  if (!assessment) return { error: "Assessment not found" };
+  if (assessment.status === "archived") {
+    return { error: "Cannot modify collaborators on an archived assessment" };
+  }
+  if (assessment.created_by === userId) {
+    return { error: "Creator already has access" };
+  }
+
+  const { error } = await supabase
+    .from("assessment_collaborators")
+    .insert({ assessment_id: assessmentId, user_id: userId, added_by: user.id });
+
+  if (error) return { error: error.message };
+
+  await writeAuditLog(supabase, user.id, assessmentId, "collaborator_added", {
+    user_id: userId,
+  });
+
+  return { success: true };
+}
+
+export async function removeCollaborator(assessmentId: string, userId: string) {
+  const supabase = await createClient();
+
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) redirect("/login");
+
+  const role = await loadRole(supabase, user.id);
+  if (role !== "privacy_officer") return { error: "Unauthorized" };
+
+  const assessment = await loadAssessmentForCollabAction(supabase, assessmentId);
+  if (!assessment) return { error: "Assessment not found" };
+  if (assessment.status === "archived") {
+    return { error: "Cannot modify collaborators on an archived assessment" };
+  }
+
+  const { error } = await supabase
+    .from("assessment_collaborators")
+    .delete()
+    .eq("assessment_id", assessmentId)
+    .eq("user_id", userId);
+
+  if (error) return { error: error.message };
+
+  await writeAuditLog(supabase, user.id, assessmentId, "collaborator_removed", {
+    user_id: userId,
+  });
+
+  return { success: true };
+}
+
+// --------------------------------------------------------------
 // Review page data bundle
 // --------------------------------------------------------------
 
 export interface ReviewBundle {
-  assessment: Assessment;
+  assessment: Assessment & { creator_name: string | null };
   viewer: { id: string; role: Profile["role"]; displayName: string | null };
   profiles: Record<string, Pick<Profile, "id" | "display_name" | "email">>;
   comments: Comment[];
   auditLog: AuditLogEntry[];
+  collaborators: CollaboratorRow[];
+  assignableProfiles: Pick<Profile, "id" | "display_name" | "email">[];
+  canManageCollaborators: boolean;
+  canEditThreshold: boolean;
   completeness: {
     threshold: unknown;
     dataFlowCount: number;
@@ -252,8 +382,15 @@ export async function getReviewBundle(assessmentId: string) {
     dataFlowsRes,
     appAnalysesRes,
     risksRes,
+    collaboratorsRes,
   ] = await Promise.all([
-    supabase.from("assessments").select("*").eq("id", assessmentId).single(),
+    supabase
+      .from("assessments")
+      .select(
+        "*, profiles!assessments_created_by_fkey(display_name, email)"
+      )
+      .eq("id", assessmentId)
+      .single(),
     supabase.from("profiles").select("id, role, display_name").eq("id", user.id).single(),
     supabase
       .from("comments")
@@ -270,18 +407,65 @@ export async function getReviewBundle(assessmentId: string) {
     supabase.from("data_flows").select("id").eq("assessment_id", assessmentId),
     supabase.from("app_analyses").select("app_number").eq("assessment_id", assessmentId),
     supabase.from("risks").select("id").eq("assessment_id", assessmentId),
+    supabase
+      .from("assessment_collaborators")
+      .select(
+        "user_id, added_by, created_at, profiles!assessment_collaborators_user_id_fkey(display_name, email)"
+      )
+      .eq("assessment_id", assessmentId)
+      .order("created_at", { ascending: true }),
   ]);
 
-  const assessment = assessmentRes.data as Assessment | null;
-  if (!assessment) return { error: "Assessment not found" };
+  const rawAssessment = assessmentRes.data as
+    | (Assessment & {
+        profiles: { display_name: string | null; email: string } | null;
+      })
+    | null;
+  if (!rawAssessment) return { error: "Assessment not found" };
+
+  const creator_name =
+    rawAssessment.profiles?.display_name ||
+    rawAssessment.profiles?.email ||
+    null;
+
+  const { profiles: _creatorProfile, ...assessmentFields } = rawAssessment;
+  void _creatorProfile;
+  const assessment = { ...assessmentFields, creator_name };
 
   const comments = (commentsRes.data as Comment[]) ?? [];
   const auditLog = (auditRes.data as AuditLogEntry[]) ?? [];
+
+  const collaboratorRows = ((collaboratorsRes.data as unknown) as Array<{
+    user_id: string;
+    added_by: string | null;
+    created_at: string;
+    profiles: { display_name: string | null; email: string } | null;
+  }>) ?? [];
+  const collaborators: CollaboratorRow[] = collaboratorRows.map((r) => ({
+    user_id: r.user_id,
+    display_name: r.profiles?.display_name ?? null,
+    email: r.profiles?.email ?? "",
+    added_by: r.added_by,
+    created_at: r.created_at,
+  }));
+
+  const viewer = viewerRes.data as
+    | { id: string; role: Profile["role"]; display_name: string | null }
+    | null;
+  const viewerRole: Profile["role"] = viewer?.role ?? null;
+  const isPO = viewerRole === "privacy_officer";
+  const canManageCollaborators = isPO && assessment.status !== "archived";
+  const canEditThreshold =
+    viewerRole === "privacy_officer" || viewerRole === "project_manager";
 
   const userIds = Array.from(
     new Set([
       ...comments.map((c) => c.user_id),
       ...auditLog.map((e) => e.user_id),
+      ...collaborators.map((c) => c.user_id),
+      ...collaborators
+        .map((c) => c.added_by)
+        .filter((v): v is string => v !== null),
     ])
   );
 
@@ -296,20 +480,39 @@ export async function getReviewBundle(assessmentId: string) {
     }
   }
 
-  const viewer = viewerRes.data as
-    | { id: string; role: Profile["role"]; display_name: string | null }
-    | null;
+  // Profiles assignable as new collaborators: anyone in the org who is
+  // neither the creator nor a privacy officer nor already a collaborator.
+  let assignableProfiles: ReviewBundle["assignableProfiles"] = [];
+  if (canManageCollaborators) {
+    const { data: orgProfiles } = await supabase
+      .from("profiles")
+      .select("id, display_name, email, role");
+    const excluded = new Set<string>([
+      assessment.created_by,
+      ...collaborators.map((c) => c.user_id),
+    ]);
+    assignableProfiles = (
+      (orgProfiles as Array<Pick<Profile, "id" | "display_name" | "email" | "role">>) ??
+      []
+    )
+      .filter((p) => p.role !== "privacy_officer" && !excluded.has(p.id))
+      .map(({ id, display_name, email }) => ({ id, display_name, email }));
+  }
 
   const bundle: ReviewBundle = {
     assessment,
     viewer: {
       id: user.id,
-      role: viewer?.role ?? null,
+      role: viewerRole,
       displayName: viewer?.display_name ?? null,
     },
     profiles: profilesMap,
     comments,
     auditLog,
+    collaborators,
+    assignableProfiles,
+    canManageCollaborators,
+    canEditThreshold,
     completeness: {
       threshold: thresholdRes.data ?? null,
       dataFlowCount: ((dataFlowsRes.data as { id: string }[]) ?? []).length,
