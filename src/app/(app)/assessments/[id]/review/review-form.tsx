@@ -7,7 +7,6 @@ import { ArrowLeft, AlertTriangle } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import type {
-  Assessment,
   AssessmentStatus,
   AuditLogEntry,
   Comment,
@@ -18,6 +17,7 @@ import type { ReviewBundle } from "./actions";
 import { StatusControls } from "./status-controls";
 import { CommentsPanel } from "./comments-panel";
 import { AuditLog } from "./audit-log";
+import { CollaboratorsPanel } from "./collaborators-panel";
 
 type ProfileSummary = Pick<Profile, "id" | "display_name" | "email">;
 
@@ -28,7 +28,9 @@ interface Props {
 export function ReviewForm({ bundle }: Props) {
   const router = useRouter();
 
-  const [assessment, setAssessment] = useState<Assessment>(bundle.assessment);
+  const [assessment, setAssessment] = useState<ReviewBundle["assessment"]>(
+    bundle.assessment
+  );
   const [comments, setComments] = useState<Comment[]>(bundle.comments);
   const [auditLog, setAuditLog] = useState<AuditLogEntry[]>(bundle.auditLog);
   const [profiles, setProfiles] = useState<Record<string, ProfileSummary>>(
@@ -116,19 +118,30 @@ export function ReviewForm({ bundle }: Props) {
         </p>
       </div>
 
-      <Card className="mb-6">
-        <CardHeader className="pb-4">
-          <CardTitle className="text-base">Current state</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <StatusControls
-            assessmentId={assessment.id}
-            status={assessment.status}
-            isPrivacyOfficer={isPO}
-            onTransition={handleTransition}
-          />
-        </CardContent>
-      </Card>
+      <div className="mb-6 grid gap-6 md:grid-cols-2">
+        <Card>
+          <CardHeader className="pb-4">
+            <CardTitle className="text-base">Current state</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <StatusControls
+              assessmentId={assessment.id}
+              status={assessment.status}
+              isPrivacyOfficer={isPO}
+              onTransition={handleTransition}
+            />
+          </CardContent>
+        </Card>
+
+        <CollaboratorsPanel
+          assessmentId={assessment.id}
+          creatorName={assessment.creator_name}
+          collaborators={bundle.collaborators}
+          assignableProfiles={bundle.assignableProfiles}
+          canManage={bundle.canManageCollaborators}
+          archived={archived}
+        />
+      </div>
 
       {showBanner && (
         <div className="mb-6 flex gap-3 rounded-lg border border-amber-300 bg-amber-50 p-4 text-sm text-amber-900 dark:border-amber-700 dark:bg-amber-950/30 dark:text-amber-200">

@@ -9,6 +9,7 @@ import {
   CheckCircle2,
   Info,
   ArrowRight,
+  Lock,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
@@ -23,6 +24,7 @@ interface ThresholdFormProps {
   assessmentId: string;
   assessmentTitle: string;
   existingThreshold: ThresholdCheck | null;
+  readOnly?: boolean;
 }
 
 const resultConfig: Record<
@@ -65,6 +67,7 @@ export function ThresholdForm({
   assessmentId,
   assessmentTitle,
   existingThreshold,
+  readOnly = false,
 }: ThresholdFormProps) {
   const router = useRouter();
   const questionRefs = useRef<(HTMLDivElement | null)[]>([]);
@@ -107,6 +110,7 @@ export function ThresholdForm({
   );
 
   function handleAnswer(questionId: string, answer: boolean, index: number) {
+    if (readOnly) return;
     setResponses((prev) => ({ ...prev, [questionId]: answer }));
     if (submittedResult) {
       setSubmittedResult(null);
@@ -153,6 +157,19 @@ export function ThresholdForm({
           Privacy Impact Assessment is needed for this project.
         </p>
       </div>
+
+      {readOnly && (
+        <div className="mb-4 flex items-start gap-2 rounded-md border border-blue-200 bg-blue-50 p-3 text-sm text-blue-900 dark:border-blue-900 dark:bg-blue-950/30 dark:text-blue-200">
+          <Lock className="mt-0.5 h-4 w-4 flex-shrink-0" />
+          <div>
+            <p className="font-medium">Read-only view</p>
+            <p className="mt-1">
+              The threshold assessment can only be edited by a privacy
+              officer or project manager.
+            </p>
+          </div>
+        </div>
+      )}
 
       {error && (
         <div className="mb-4 rounded-md bg-destructive/10 p-3 text-sm text-destructive">
@@ -203,7 +220,8 @@ export function ThresholdForm({
               <button
                 type="button"
                 onClick={() => handleAnswer(q.id, true, i)}
-                className={`rounded-md px-3.5 py-1.5 text-sm font-medium transition-colors ${
+                disabled={readOnly}
+                className={`rounded-md px-3.5 py-1.5 text-sm font-medium transition-colors disabled:cursor-not-allowed disabled:opacity-60 ${
                   responses[q.id] === true
                     ? "bg-amber-500 text-white"
                     : "bg-muted text-muted-foreground hover:bg-muted/80"
@@ -214,7 +232,8 @@ export function ThresholdForm({
               <button
                 type="button"
                 onClick={() => handleAnswer(q.id, false, i)}
-                className={`rounded-md px-3.5 py-1.5 text-sm font-medium transition-colors ${
+                disabled={readOnly}
+                className={`rounded-md px-3.5 py-1.5 text-sm font-medium transition-colors disabled:cursor-not-allowed disabled:opacity-60 ${
                   responses[q.id] === false
                     ? "bg-amber-500 text-white"
                     : "bg-muted text-muted-foreground hover:bg-muted/80"
@@ -256,7 +275,7 @@ export function ThresholdForm({
       )}
 
       {/* Sticky submit bar */}
-      {!submittedResult && answeredCount > 0 && (
+      {!readOnly && !submittedResult && answeredCount > 0 && (
         <div className="fixed bottom-0 left-0 right-0 z-50 border-t bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/80">
           <div className="mx-auto flex max-w-3xl items-center justify-between px-4 py-3">
             <span className="text-sm text-muted-foreground">
