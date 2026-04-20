@@ -60,6 +60,16 @@ Backfilled from git history as one-liners; not a single discrete session.
 - **verification** — _pending_ — Smoke tests listed in §13 of the design note. To run post-merge against https://pia-web-app.vercel.app once Vercel re-deploys.
 - **deployed** — _pending_ — Awaiting PR merge and Vercel deploy.
 
+## Step 5.5 — Team & collaborator management
+
+**In progress** — see `docs/steps/step-05-5-team.md` for full design note.
+
+- **concept** — 2026-04-19 — Follow-up from Step 5 live-env testing. Two issues surfaced: PO cannot assign roles on the Team page (browser freezes silently when a role is selected); PO cannot see who created each PIA or add users to contribute. Scope also bundles RLS-2, RLS-4, and RLS-6 fixes from the Step 5 security review into a single migration.
+- **design** — 2026-04-19 — Design note drafted and signed off. Key decisions: rename enum `other` → `team_member`; role-based permissions (team_member cannot edit threshold anywhere, even on own PIAs); new `assessment_collaborators` join table with PO-only write; deprecate `assigned_to` (migrate + drop); creator name on assessment header and assessments list; collaborator panel inline on review page; profile dropdown picker; archived PIAs block collab changes; single migration `00005_roles_and_collaborators.sql`. Ten-chunk commit plan for small-PR workflow; PR #9 at end.
+- **code** — 2026-04-20 — Chunks 1–10 committed on `claude/review-and-plan-BqrRI`. Chunk 2 migration needed an ordering fix (drop dependent `assessments_select` / `assessments_update` policies before dropping `assigned_to`) — applied cleanly after the fix; four verification queries pass. Chunk 3 migrates `UserRole` + `Assessment` + adds `AssessmentCollaborator`. Chunks 4–5 rewrite `/settings/team` and `/settings/invites` as server → client-component pairs, killing the infinite-render freeze; `updateUserRole` now rejects self-assignment and PO-role targets. Chunk 6 surfaces creator name on the assessment header and list and drops the `assigned_to` OR-filter on dashboard / assessments since RLS now enforces the same scope. Chunk 7 adds `getCollaborators` / `addCollaborator` / `removeCollaborator` server actions and extends `ReviewBundle` with `collaborators`, `assignableProfiles`, `canManageCollaborators`, `canEditThreshold`, and `assessment.creator_name`. Chunk 8 adds the `CollaboratorsPanel` to the review page and the read-only banner + disabled inputs on the threshold form for team_members. Chunk 9 extracts `canEditThreshold` into `src/lib/threshold-permissions.ts`, adds 4 unit tests for it, and a new `tests/integration/team-roles.test.ts` that covers the enum rename, `freeze_created_by`, `last_po_guard`, collaborator round-trip, and the archived-block. 75/75 unit tests pass; integration tests skip cleanly when env not set. Chunk 10 closes RLS-2/4/6 in `docs/security-review.md` + `docs/backlog.md`, adds a Step 5.5 review section, and opens PR #9.
+- **verification** — _pending_ — smoke tests 5.5.1–5.5.12 in §13 of the design note, to run post-merge against https://pia-web-app.vercel.app.
+- **deployed** — _pending_ — awaiting PR #9 merge and Vercel redeploy.
+
 ## Step 6 — Report generation (OAIC structure + Word export)
 
 **Not started** — priority 3 per handover brief.

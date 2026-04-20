@@ -95,7 +95,7 @@ export default function OnboardingPage() {
       description:
         "Create and manage your own Privacy Impact Assessments. Submit for review when complete.",
     },
-    other: {
+    team_member: {
       icon: <User className="h-8 w-8" />,
       title: "Team Member",
       description:

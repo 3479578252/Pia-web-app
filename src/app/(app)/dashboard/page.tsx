@@ -20,22 +20,14 @@ export default async function DashboardPage() {
   const profile = rawProfile as Profile | null;
   if (!profile) redirect("/login");
 
-  const isPrivacyOfficer = profile.role === "privacy_officer";
-
-  // Privacy officers see all assessments; others see their own
-  let assessmentsQuery = supabase
+  // RLS restricts rows to PO / creator / collaborator; no client-side
+  // filter needed (an explicit `created_by` filter would hide PIAs the
+  // caller joined via the collaborator table).
+  const { data: rawAssessments } = await supabase
     .from("assessments")
     .select("*, profiles!assessments_created_by_fkey(display_name, email)")
     .order("updated_at", { ascending: false })
     .limit(10);
-
-  if (!isPrivacyOfficer) {
-    assessmentsQuery = assessmentsQuery.or(
-      `created_by.eq.${user.id},assigned_to.eq.${user.id}`
-    );
-  }
-
-  const { data: rawAssessments } = await assessmentsQuery;
   const assessments = (rawAssessments || []) as Array<{
     id: string;
     title: string;
@@ -45,14 +37,9 @@ export default async function DashboardPage() {
     profiles: { display_name: string | null; email: string } | null;
   }>;
 
-  // Counts by status
-  let countQuery = supabase.from("assessments").select("status");
-  if (!isPrivacyOfficer) {
-    countQuery = countQuery.or(
-      `created_by.eq.${user.id},assigned_to.eq.${user.id}`
-    );
-  }
-  const { data: allAssessments } = await countQuery;
+  const { data: allAssessments } = await supabase
+    .from("assessments")
+    .select("status");
 
   const statusCounts = {
     draft: 0,

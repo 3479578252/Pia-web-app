@@ -107,6 +107,14 @@ export async function updateUserRole(userId: string, role: UserRole) {
   } = await supabase.auth.getUser();
   if (!user) return { error: "Not authenticated" };
 
+  if (userId === user.id) {
+    return { error: "You cannot change your own role" };
+  }
+
+  if (role === "privacy_officer") {
+    return { error: "Privacy officer role cannot be assigned from the team page" };
+  }
+
   const { data: profile } = await supabase
     .from("profiles")
     .select("role")

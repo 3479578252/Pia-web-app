@@ -1,4 +1,4 @@
-export type UserRole = "privacy_officer" | "project_manager" | "other";
+export type UserRole = "privacy_officer" | "project_manager" | "team_member";
 export type AssessmentStatus = "draft" | "in_review" | "approved" | "archived";
 export type ThresholdResult = "full_pia_required" | "pia_recommended" | "not_required" | "pending";
 export type RiskLikelihood =
@@ -40,12 +40,16 @@ export type CommentSection =
 export type AuditAction =
   | "status_changed"
   | "comment_added"
-  | "comment_deleted";
+  | "comment_deleted"
+  | "comment_purged"
+  | "collaborator_added"
+  | "collaborator_removed";
 
 export type AuditDetails =
   | { from: AssessmentStatus; to: AssessmentStatus }
   | { comment_id: string; section: CommentSection }
-  | { comment_id: string };
+  | { comment_id: string }
+  | { user_id: string };
 
 export interface Profile {
   id: string;
@@ -78,9 +82,15 @@ export interface Assessment {
   project_description: string | null;
   status: AssessmentStatus;
   created_by: string;
-  assigned_to: string | null;
   created_at: string;
   updated_at: string;
+}
+
+export interface AssessmentCollaborator {
+  assessment_id: string;
+  user_id: string;
+  added_by: string | null;
+  created_at: string;
 }
 
 export interface ThresholdCheck {
@@ -210,9 +220,31 @@ export interface Database {
             referencedRelation: "profiles";
             referencedColumns: ["id"];
           },
+        ];
+      };
+      assessment_collaborators: {
+        Row: AssessmentCollaborator;
+        Insert: Pick<AssessmentCollaborator, "assessment_id" | "user_id"> &
+          Partial<Pick<AssessmentCollaborator, "added_by" | "created_at">>;
+        Update: Partial<AssessmentCollaborator>;
+        Relationships: [
           {
-            foreignKeyName: "assessments_assigned_to_fkey";
-            columns: ["assigned_to"];
+            foreignKeyName: "assessment_collaborators_assessment_id_fkey";
+            columns: ["assessment_id"];
+            isOneToOne: false;
+            referencedRelation: "assessments";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "assessment_collaborators_user_id_fkey";
+            columns: ["user_id"];
+            isOneToOne: false;
+            referencedRelation: "profiles";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "assessment_collaborators_added_by_fkey";
+            columns: ["added_by"];
             isOneToOne: false;
             referencedRelation: "profiles";
             referencedColumns: ["id"];
