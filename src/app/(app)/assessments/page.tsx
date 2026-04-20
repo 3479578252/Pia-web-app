@@ -46,16 +46,13 @@ export default async function AssessmentsPage() {
 
   const isPrivacyOfficer = profile?.role === "privacy_officer";
 
-  let query = supabase
+  // RLS restricts rows to PO / creator / collaborator; no client-side
+  // filter needed (an explicit `created_by` filter would hide PIAs the
+  // caller joined via the collaborator table).
+  const { data: rawAssessments } = await supabase
     .from("assessments")
     .select("*, profiles!assessments_created_by_fkey(display_name, email)")
     .order("updated_at", { ascending: false });
-
-  if (!isPrivacyOfficer) {
-    query = query.or(`created_by.eq.${user.id},assigned_to.eq.${user.id}`);
-  }
-
-  const { data: rawAssessments } = await query;
   const assessments = rawAssessments as (Assessment & {
     profiles: { display_name: string | null; email: string } | null;
   })[] | null;
@@ -95,25 +92,30 @@ export default async function AssessmentsPage() {
             </p>
           ) : (
             <div className="space-y-2">
-              {assessments.map((a) => (
-                <Link
-                  key={a.id}
-                  href={`/assessments/${a.id}`}
-                  className="flex items-center justify-between rounded-md border p-4 transition-colors hover:bg-muted/50"
-                >
-                  <div className="space-y-1">
-                    <p className="text-sm font-medium">{a.title}</p>
-                    <p className="text-xs text-muted-foreground">
-                      {a.description && `${a.description.slice(0, 80)}... · `}
-                      Updated{" "}
-                      {new Date(a.updated_at).toLocaleDateString()}
-                    </p>
-                  </div>
-                  <Badge variant={statusVariants[a.status]}>
-                    {statusLabels[a.status]}
-                  </Badge>
-                </Link>
-              ))}
+              {assessments.map((a) => {
+                const creatorName =
+                  a.profiles?.display_name || a.profiles?.email || null;
+                return (
+                  <Link
+                    key={a.id}
+                    href={`/assessments/${a.id}`}
+                    className="flex items-center justify-between rounded-md border p-4 transition-colors hover:bg-muted/50"
+                  >
+                    <div className="space-y-1">
+                      <p className="text-sm font-medium">{a.title}</p>
+                      <p className="text-xs text-muted-foreground">
+                        {a.description && `${a.description.slice(0, 80)}... · `}
+                        {creatorName && `by ${creatorName} · `}
+                        Updated{" "}
+                        {new Date(a.updated_at).toLocaleDateString()}
+                      </p>
+                    </div>
+                    <Badge variant={statusVariants[a.status]}>
+                      {statusLabels[a.status]}
+                    </Badge>
+                  </Link>
+                );
+              })}
             </div>
           )}
         </CardContent>

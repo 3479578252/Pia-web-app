@@ -74,12 +74,19 @@ export default async function AssessmentPage({
 
   const { data: rawAssessment } = await supabase
     .from("assessments")
-    .select("*")
+    .select("*, profiles!assessments_created_by_fkey(display_name, email)")
     .eq("id", id)
     .single();
 
-  const assessment = rawAssessment as Assessment | null;
+  const assessment = rawAssessment as
+    | (Assessment & {
+        profiles: { display_name: string | null; email: string } | null;
+      })
+    | null;
   if (!assessment) notFound();
+
+  const creatorName =
+    assessment.profiles?.display_name || assessment.profiles?.email || null;
 
   // Check threshold status
   const { data: rawThreshold } = await supabase
@@ -168,6 +175,11 @@ export default async function AssessmentPage({
         {assessment.project_name && (
           <p className="mt-1 text-sm text-muted-foreground">
             Project: {assessment.project_name}
+          </p>
+        )}
+        {creatorName && (
+          <p className="mt-1 text-sm text-muted-foreground">
+            Created by {creatorName}
           </p>
         )}
       </div>
