@@ -19,7 +19,7 @@ import type { Invite, UserRole } from "@/types/database";
 
 const ROLE_OPTIONS: { value: UserRole; label: string }[] = [
   { value: "project_manager", label: "Project Manager" },
-  { value: "other", label: "Team Member" },
+  { value: "team_member", label: "Team Member" },
 ];
 
 export default function InvitesPage() {

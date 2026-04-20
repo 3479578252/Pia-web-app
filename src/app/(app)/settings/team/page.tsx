@@ -17,7 +17,7 @@ import type { Profile, UserRole } from "@/types/database";
 const ROLE_OPTIONS: { value: UserRole; label: string }[] = [
   { value: "privacy_officer", label: "Privacy Officer" },
   { value: "project_manager", label: "Project Manager" },
-  { value: "other", label: "Team Member" },
+  { value: "team_member", label: "Team Member" },
 ];
 
 export default function TeamPage() {
