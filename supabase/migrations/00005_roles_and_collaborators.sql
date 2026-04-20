@@ -99,13 +99,22 @@ WHERE assigned_to IS NOT NULL
 ON CONFLICT DO NOTHING;
 
 -- ============================================================
--- 5. Drop assigned_to column
+-- 5. Drop policies that reference assigned_to
+-- ============================================================
+-- Must drop the two assessments policies before the column drop, because
+-- they reference assigned_to directly. Recreated below via the new helper.
+
+DROP POLICY assessments_select ON public.assessments;
+DROP POLICY assessments_update ON public.assessments;
+
+-- ============================================================
+-- 6. Drop assigned_to column
 -- ============================================================
 
 ALTER TABLE public.assessments DROP COLUMN assigned_to;
 
 -- ============================================================
--- 6. Rewrite can_access_assessment()
+-- 7. Rewrite can_access_assessment()
 -- ============================================================
 -- Union: PO, creator, or collaborator.
 
@@ -123,7 +132,19 @@ RETURNS BOOLEAN AS $$
 $$ LANGUAGE sql SECURITY DEFINER STABLE;
 
 -- ============================================================
--- 7. can_edit_threshold() helper
+-- 8. Recreate assessments SELECT + UPDATE policies via the new helper
+-- ============================================================
+
+CREATE POLICY assessments_select ON public.assessments
+  FOR SELECT USING (can_access_assessment(id));
+
+CREATE POLICY assessments_update ON public.assessments
+  FOR UPDATE
+  USING (can_access_assessment(id))
+  WITH CHECK (can_access_assessment(id));
+
+-- ============================================================
+-- 9. can_edit_threshold() helper
 -- ============================================================
 -- Role-based: privacy_officer and project_manager can edit threshold;
 -- team_member cannot (even on their own PIAs).
@@ -138,7 +159,7 @@ RETURNS BOOLEAN AS $$
 $$ LANGUAGE sql SECURITY DEFINER STABLE;
 
 -- ============================================================
--- 8. Tighten threshold policies
+-- 10. Tighten threshold policies
 -- ============================================================
 
 DROP POLICY threshold_insert ON public.threshold_checks;
@@ -155,21 +176,6 @@ CREATE POLICY threshold_update ON public.threshold_checks
   );
 
 -- SELECT unchanged: any user with access can view the threshold result.
-
--- ============================================================
--- 9. Assessments SELECT + UPDATE policies via the new helper
--- ============================================================
-
-DROP POLICY assessments_select ON public.assessments;
-DROP POLICY assessments_update ON public.assessments;
-
-CREATE POLICY assessments_select ON public.assessments
-  FOR SELECT USING (can_access_assessment(id));
-
-CREATE POLICY assessments_update ON public.assessments
-  FOR UPDATE
-  USING (can_access_assessment(id))
-  WITH CHECK (can_access_assessment(id));
 
 -- ============================================================
 -- 10. RLS-2: freeze created_by
